@@ -9,15 +9,13 @@ import {
   IconButton,
   CircularProgress,
   Alert,
-  Fab,
 } from '@mui/material';
 import {
   Favorite,
   ChevronLeft,
   ChevronRight,
-  Home,
 } from '@mui/icons-material';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import { letterApi } from '@/lib/api';
 
@@ -46,7 +44,6 @@ interface LetterData {
 
 export default function ViewLetterPage() {
   const params = useParams();
-  const router = useRouter();
   const publicId = params.publicId as string;
 
   const [loading, setLoading] = useState(true);
@@ -169,21 +166,6 @@ export default function ViewLetterPage() {
       }}
     >
       <Container maxWidth="md">
-        {/* Home Button */}
-        <Fab
-          color="primary"
-          sx={{
-            position: 'fixed',
-            bottom: 24,
-            right: 24,
-            zIndex: 1000,
-            background: 'linear-gradient(45deg, #f50057 30%, #ff4081 90%)',
-          }}
-          onClick={() => router.push('/create')}
-        >
-          <Home />
-        </Fab>
-
         {/* Header */}
         <Box
           sx={{
