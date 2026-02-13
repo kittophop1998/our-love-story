@@ -25,10 +25,10 @@ import {
   Send,
 } from '@mui/icons-material';
 import { useDropzone } from 'react-dropzone';
-import axios from 'axios';
 import { useRouter } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
 import Image from 'next/image';
+import { letterApi } from '@/lib/api';
 
 interface Attachment {
   fileUrl: string;
@@ -47,8 +47,6 @@ interface CreatedLetter {
   senderName: string;
   coverImageUrl: string;
 }
-
-const API_BASE_URL = 'http://localhost:8000/api/v1';
 
 export default function CreateLetterPage() {
   const router = useRouter();
@@ -112,49 +110,7 @@ export default function CreateLetterPage() {
 
   // Upload file to server
   const uploadFile = async (file: File): Promise<string> => {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    const response = await axios.post(
-      `${API_BASE_URL}/letters/upload-attachment`,
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      }
-    );
-
-    // Debug: Log full response
-    console.log('Upload API response:', response.data);
-    
-    // Extract file URL from response
-    // Response structure: { success, message, data: { id, fileurl }, timestamp }
-    let fileUrl: string = '';
-    
-    if (typeof response.data === 'string') {
-      fileUrl = response.data;
-    } else if (response.data.data?.fileurl) {
-      // API returns { data: { fileurl: "http://..." } }
-      fileUrl = response.data.data.fileurl;
-    } else if (response.data.data?.url) {
-      fileUrl = response.data.data.url;
-    } else if (response.data.fileurl) {
-      fileUrl = response.data.fileurl;
-    } else if (response.data.url) {
-      fileUrl = response.data.url;
-    } else if (typeof response.data.data === 'string') {
-      fileUrl = response.data.data;
-    }
-    
-    console.log('Extracted file URL:', fileUrl);
-    
-    if (!fileUrl || typeof fileUrl !== 'string') {
-      console.error('Failed to extract fileUrl from:', response.data);
-      throw new Error('Invalid file URL received from server');
-    }
-    
-    return fileUrl;
+    return await letterApi.uploadAttachment(file);
   };
 
   // Handle file drop
@@ -193,11 +149,7 @@ export default function CreateLetterPage() {
         });
       }
     } catch (err) {
-      if (axios.isAxiosError(err)) {
-        setError('เกิดข้อผิดพลาดในการอัพโหลดไฟล์: ' + err.message);
-      } else {
-        setError('เกิดข้อผิดพลาดในการอัพโหลดไฟล์');
-      }
+      setError('เกิดข้อผิดพลาดในการอัพโหลดไฟล์: ' + (err instanceof Error ? err.message : 'Unknown error'));
     } finally {
       setUploadingFile(false);
     }
@@ -234,11 +186,7 @@ export default function CreateLetterPage() {
       setFormData((prev) => ({ ...prev, coverImageUrl: fileUrl }));
       setCoverImagePreview(localPreview);
     } catch (err) {
-      if (axios.isAxiosError(err)) {
-        setError('เกิดข้อผิดพลาดในการอัพโหลดภาพปก: ' + err.message);
-      } else {
-        setError('เกิดข้อผิดพลาดในการอัพโหลดภาพปก');
-      }
+      setError('เกิดข้อผิดพลาดในการอัพโหลดภาพปก: ' + (err instanceof Error ? err.message : 'Unknown error'));
     } finally {
       setUploadingFile(false);
     }
@@ -291,20 +239,13 @@ export default function CreateLetterPage() {
         attachments: attachmentsToSend,
       };
 
-      // Log request data for debugging
-      console.log('Sending request to create letter:', requestData);
+      const letterData = await letterApi.createLetter(requestData);
 
-      const response = await axios.post(`${API_BASE_URL}/letters/create`, requestData);
-
-      setCreatedLetter(response.data.data);
+      setCreatedLetter(letterData);
       setSuccess(true);
       setQrDialogOpen(true);
     } catch (err) {
-      if (axios.isAxiosError(err)) {
-        setError(
-          err.response?.data?.message || 'เกิดข้อผิดพลาดในการสร้างจดหมาย'
-        );
-      } else if (err instanceof Error) {
+      if (err instanceof Error) {
         setError(err.message);
       } else {
         setError('เกิดข้อผิดพลาดในการสร้างจดหมาย');

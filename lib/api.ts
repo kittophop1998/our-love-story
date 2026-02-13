@@ -25,7 +25,35 @@ export const letterApi = {
         },
       }
     );
-    return response.data.data.url;
+    
+    // Debug: Log full response
+    console.log('Upload API response:', response.data);
+    
+    // Extract file URL from response
+    let fileUrl: string = '';
+    
+    if (typeof response.data === 'string') {
+      fileUrl = response.data;
+    } else if (response.data.data?.fileurl) {
+      fileUrl = response.data.data.fileurl;
+    } else if (response.data.data?.url) {
+      fileUrl = response.data.data.url;
+    } else if (response.data.fileurl) {
+      fileUrl = response.data.fileurl;
+    } else if (response.data.url) {
+      fileUrl = response.data.url;
+    } else if (typeof response.data.data === 'string') {
+      fileUrl = response.data.data;
+    }
+    
+    console.log('Extracted file URL:', fileUrl);
+    
+    if (!fileUrl || typeof fileUrl !== 'string') {
+      console.error('Failed to extract fileUrl from:', response.data);
+      throw new Error('Invalid file URL received from server');
+    }
+    
+    return fileUrl;
   },
 
   // Create letter

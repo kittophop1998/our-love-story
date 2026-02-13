@@ -17,9 +17,9 @@ import {
   ChevronRight,
   Home,
 } from '@mui/icons-material';
-import axios from 'axios';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { letterApi } from '@/lib/api';
 
 interface Attachment {
   id: number;
@@ -44,8 +44,6 @@ interface LetterData {
   attachments: Attachment[];
 }
 
-const API_BASE_URL = 'http://localhost:8000/api/v1';
-
 export default function ViewLetterPage() {
   const params = useParams();
   const router = useRouter();
@@ -60,17 +58,10 @@ export default function ViewLetterPage() {
   useEffect(() => {
     const fetchLetter = async () => {
       try {
-        const response = await axios.get(
-          `${API_BASE_URL}/letters/public/${publicId}`
-        );
-        console.log('Letter data:', response.data.data);
-        setLetter(response.data.data);
+        const letterData = await letterApi.getLetterByPublicId(publicId);
+        setLetter(letterData);
       } catch (err) {
-        if (axios.isAxiosError(err)) {
-          setError(err.response?.data?.message || 'ไม่พบจดหมายนี้');
-        } else {
-          setError('เกิดข้อผิดพลาดในการโหลดจดหมาย');
-        }
+        setError(err instanceof Error ? (err.message || 'ไม่พบจดหมายนี้') : 'เกิดข้อผิดพลาดในการโหลดจดหมาย');
       } finally {
         setLoading(false);
       }
