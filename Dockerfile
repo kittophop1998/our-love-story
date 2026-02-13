@@ -33,12 +33,11 @@ RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
 # Copy only necessary files
-COPY --from=build /app/public ./public
-COPY --from=build /app/.next/standalone ./
-COPY --from=build /app/.next/static ./.next/static
+COPY --from=build --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=build --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Set ownership
-RUN chown -R nextjs:nodejs /app
+# Copy public files if they exist
+COPY --from=build --chown=nextjs:nodejs /app/public ./public
 
 # Switch to non-root user
 USER nextjs
