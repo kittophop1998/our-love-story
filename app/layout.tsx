@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Sarabun } from "next/font/google";
+import { Sarabun, Caveat } from "next/font/google";
 import "./globals.css";
 import ThemeRegistry from "./ThemeRegistry";
 
@@ -7,6 +7,13 @@ const sarabun = Sarabun({
   weight: ['300', '400', '500', '600', '700'],
   subsets: ["latin", "thai"],
   variable: "--font-sarabun",
+});
+
+const caveat = Caveat({
+  weight: ['400', '700'],
+  subsets: ["latin"],
+  variable: "--font-caveat",
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
@@ -21,7 +28,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="th">
-      <body className={sarabun.className}>
+      <body className={`${sarabun.variable} ${caveat.variable}`} style={{ fontFamily: 'var(--font-sarabun)' }}>
         <ThemeRegistry>
           {children}
         </ThemeRegistry>

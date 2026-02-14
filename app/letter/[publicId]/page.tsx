@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     Container,
     Box,
@@ -8,10 +8,17 @@ import {
     Card,
     CircularProgress,
     Alert,
+    Paper,
+    IconButton,
+    Tooltip,
 } from '@mui/material';
 import {
     Favorite,
     KeyboardArrowDown,
+    PlayArrow,
+    Pause,
+    VolumeUp,
+    VolumeOff,
 } from '@mui/icons-material';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
@@ -47,8 +54,9 @@ export default function ViewLetterPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [letter, setLetter] = useState<LetterData | null>(null);
-    const [scrollProgress, setScrollProgress] = useState(0);
-    const [visibleSections, setVisibleSections] = useState<Set<number>>(new Set());
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [isMuted, setIsMuted] = useState(false);
+    const audioRef = useRef<HTMLAudioElement>(null);
 
     // Fetch letter data
     useEffect(() => {
@@ -68,61 +76,24 @@ export default function ViewLetterPage() {
         }
     }, [publicId]);
 
-    // Scroll progress tracking
-    useEffect(() => {
-        const handleScroll = () => {
-            const windowHeight = window.innerHeight;
-            const documentHeight = document.documentElement.scrollHeight - windowHeight;
-            const scrolled = window.scrollY;
-            const progress = (scrolled / documentHeight) * 100;
-            setScrollProgress(progress);
+    // Music control functions
+    const togglePlay = () => {
+        if (audioRef.current) {
+            if (isPlaying) {
+                audioRef.current.pause();
+            } else {
+                audioRef.current.play().catch(err => console.log('Audio play error:', err));
+            }
+            setIsPlaying(!isPlaying);
+        }
+    };
 
-            // Check which sections are visible
-            const sections = document.querySelectorAll('.story-section');
-            const newVisibleSections = new Set<number>();
-
-            sections.forEach((section, index) => {
-                const rect = section.getBoundingClientRect();
-                if (rect.top < windowHeight * 0.75 && rect.bottom > 0) {
-                    newVisibleSections.add(index);
-                }
-            });
-
-            setVisibleSections(newVisibleSections);
-        };
-
-        window.addEventListener('scroll', handleScroll);
-        handleScroll(); // Initial check
-        return () => window.removeEventListener('scroll', handleScroll);
-    }, [letter]);
-
-    // Floating hearts animation
-    useEffect(() => {
-        const interval = setInterval(() => {
-            const heart = document.createElement('div');
-            heart.innerHTML = '❤️';
-            heart.style.cssText = `
-        position: fixed;
-        left: ${Math.random() * 100}vw;
-        top: 105vh;
-        opacity: 0.6;
-        pointer-events: none;
-        z-index: 1;
-        transition: all 5s linear;
-        font-size: 24px;
-      `;
-            document.body.appendChild(heart);
-
-            setTimeout(() => {
-                heart.style.top = '-10vh';
-                heart.style.opacity = '0';
-            }, 50);
-
-            setTimeout(() => heart.remove(), 5000);
-        }, 800);
-
-        return () => clearInterval(interval);
-    }, []);
+    const toggleMute = () => {
+        if (audioRef.current) {
+            audioRef.current.muted = !isMuted;
+            setIsMuted(!isMuted);
+        }
+    };
 
     if (loading) {
         return (
@@ -174,27 +145,72 @@ export default function ViewLetterPage() {
                 overflow: 'hidden',
             }}
         >
-            {/* Progress Bar */}
+            {/* Audio Element */}
+            <audio
+                ref={audioRef}
+                loop
+                onPlay={() => setIsPlaying(true)}
+                onPause={() => setIsPlaying(false)}
+            >
+                <source src="/music/love-song.mp3" type="audio/mpeg" />
+                Your browser does not support the audio element.
+            </audio>
+
+            {/* Floating Music Controls */}
             <Box
                 sx={{
                     position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: 4,
-                    background: 'rgba(255,255,255,0.3)',
+                    bottom: { xs: 20, md: 30 },
+                    right: { xs: 20, md: 30 },
                     zIndex: 1000,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 1,
                 }}
             >
-                <Box
-                    sx={{
-                        height: '100%',
-                        background: 'linear-gradient(90deg, #e91e63, #f06292, #e91e63)',
-                        transition: 'width 0.1s ease',
-                        width: `${scrollProgress}%`,
-                        boxShadow: '0 0 10px rgba(233, 30, 99, 0.5)',
-                    }}
-                />
+                {/* Play/Pause Button */}
+                <Tooltip title={isPlaying ? 'หยุดเพลง' : 'เล่นเพลง'} placement="left">
+                    <IconButton
+                        onClick={togglePlay}
+                        sx={{
+                            width: { xs: 50, md: 60 },
+                            height: { xs: 50, md: 60 },
+                            backgroundColor: 'rgba(233, 30, 99, 0.9)',
+                            color: 'white',
+                            backdropFilter: 'blur(10px)',
+                            boxShadow: '0 4px 20px rgba(233, 30, 99, 0.4)',
+                            '&:hover': {
+                                backgroundColor: 'rgba(233, 30, 99, 1)',
+                                transform: 'scale(1.1)',
+                            },
+                            transition: 'all 0.3s ease',
+                        }}
+                    >
+                        {isPlaying ? <Pause sx={{ fontSize: { xs: 24, md: 28 } }} /> : <PlayArrow sx={{ fontSize: { xs: 24, md: 28 } }} />}
+                    </IconButton>
+                </Tooltip>
+
+                {/* Mute/Unmute Button */}
+                <Tooltip title={isMuted ? 'เปิดเสียง' : 'ปิดเสียง'} placement="left">
+                    <IconButton
+                        onClick={toggleMute}
+                        sx={{
+                            width: { xs: 45, md: 50 },
+                            height: { xs: 45, md: 50 },
+                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                            color: '#e91e63',
+                            backdropFilter: 'blur(10px)',
+                            boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)',
+                            '&:hover': {
+                                backgroundColor: 'rgba(255, 255, 255, 1)',
+                                transform: 'scale(1.1)',
+                            },
+                            transition: 'all 0.3s ease',
+                        }}
+                    >
+                        {isMuted ? <VolumeOff sx={{ fontSize: { xs: 20, md: 24 } }} /> : <VolumeUp sx={{ fontSize: { xs: 20, md: 24 } }} />}
+                    </IconButton>
+                </Tooltip>
             </Box>
 
             {/* Hero Section - Opening */}
@@ -206,31 +222,17 @@ export default function ViewLetterPage() {
                     justifyContent: 'center',
                     position: 'relative',
                     textAlign: 'center',
-                    px: 3,
+                    px: { xs: 2, md: 3 },
+                    py: { xs: 4, md: 0 },
                 }}
-                className="story-section"
             >
                 <Container maxWidth="md">
-                    <Box
-                        sx={{
-                            animation: visibleSections.has(0) ? 'fadeInUp 1.5s ease-out' : 'none',
-                            '@keyframes fadeInUp': {
-                                from: { opacity: 0, transform: 'translateY(40px)' },
-                                to: { opacity: 1, transform: 'translateY(0)' },
-                            },
-                        }}
-                    >
+                    <Box>
                         <Favorite
                             sx={{
-                                fontSize: 80,
+                                fontSize: { xs: 60, md: 80 },
                                 color: '#e91e63',
-                                mb: 3,
-                                animation: 'heartBeat 2s ease-in-out infinite',
-                                '@keyframes heartBeat': {
-                                    '0%, 100%': { transform: 'scale(1)' },
-                                    '10%, 30%': { transform: 'scale(1.1)' },
-                                    '20%, 40%': { transform: 'scale(1)' },
-                                },
+                                mb: { xs: 2, md: 3 },
                             }}
                         />
                         <Typography
@@ -240,8 +242,9 @@ export default function ViewLetterPage() {
                             gutterBottom
                             sx={{
                                 fontFamily: 'serif',
-                                mb: 3,
+                                mb: { xs: 2, md: 3 },
                                 textShadow: '2px 2px 4px rgba(0,0,0,0.1)',
+                                fontSize: { xs: '2rem', sm: '2.5rem', md: '3.75rem' },
                             }}
                         >
                             {letter.title}
@@ -250,20 +253,16 @@ export default function ViewLetterPage() {
                             variant="h5"
                             color="text.secondary"
                             fontStyle="italic"
-                            sx={{ mb: 4, fontWeight: 300 }}
+                            sx={{ 
+                                mb: { xs: 3, md: 4 }, 
+                                fontWeight: 300,
+                                fontSize: { xs: '1.1rem', sm: '1.3rem', md: '1.5rem' },
+                            }}
                         >
                             เรื่องราวความรักของเรา
                         </Typography>
-                        <Box
-                            sx={{
-                                animation: 'bounce 2s ease-in-out infinite',
-                                '@keyframes bounce': {
-                                    '0%, 100%': { transform: 'translateY(0)' },
-                                    '50%': { transform: 'translateY(-15px)' },
-                                },
-                            }}
-                        >
-                            <KeyboardArrowDown sx={{ fontSize: 48, color: '#e91e63', opacity: 0.7 }} />
+                        <Box>
+                            <KeyboardArrowDown sx={{ fontSize: { xs: 36, md: 48 }, color: '#e91e63', opacity: 0.7 }} />
                         </Box>
                     </Box>
                 </Container>
@@ -273,44 +272,37 @@ export default function ViewLetterPage() {
             {(letter.coverImageSignedUrl || letter.coverImageUrl) && (
                 <Box
                     sx={{
-                        minHeight: '100vh',
+                        minHeight: { xs: 'auto', md: '100vh' },
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        py: 8,
-                        px: 3,
+                        py: { xs: 6, md: 8 },
+                        px: { xs: 2, md: 3 },
                     }}
-                    className="story-section"
                 >
                     <Container maxWidth="lg">
-                        <Box
-                            sx={{
-                                animation: visibleSections.has(1) ? 'scaleIn 1s ease-out' : 'none',
-                                '@keyframes scaleIn': {
-                                    from: { opacity: 0, transform: 'scale(0.8)' },
-                                    to: { opacity: 1, transform: 'scale(1)' },
-                                },
-                            }}
-                        >
+                        <Box>
                             <Typography
                                 variant="h4"
                                 textAlign="center"
                                 color="#c2185b"
                                 fontWeight="bold"
-                                sx={{ mb: 4, fontFamily: 'serif' }}
+                                sx={{ 
+                                    mb: { xs: 3, md: 4 }, 
+                                    fontFamily: 'serif',
+                                    fontSize: { xs: '1.75rem', sm: '2rem', md: '2.125rem' },
+                                }}
                             >
                                 บทเริ่มต้น
                             </Typography>
                             <Card
                                 sx={{
-                                    borderRadius: 6,
+                                    borderRadius: { xs: 4, md: 6 },
                                     overflow: 'hidden',
                                     boxShadow: '0 20px 60px rgba(233, 30, 99, 0.3)',
-                                    transform: visibleSections.has(1) ? 'rotateY(0)' : 'rotateY(10deg)',
-                                    transition: 'transform 1s ease-out',
                                 }}
                             >
-                                <Box sx={{ position: 'relative', width: '100%', height: { xs: 400, md: 600 } }}>
+                                <Box sx={{ position: 'relative', width: '100%', height: { xs: 300, sm: 400, md: 600 } }}>
                                     <Image
                                         src={letter.coverImageSignedUrl || letter.coverImageUrl}
                                         alt="Cover"
@@ -329,216 +321,160 @@ export default function ViewLetterPage() {
                 </Box>
             )}
 
-            {/* Story Chapters - Each Photo as a Chapter */}
-            {sortedAttachments.map((attachment, index) => (
-                <Box
-                    key={attachment.id}
-                    sx={{
-                        minHeight: '100vh',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        py: 8,
-                        px: 3,
-                    }}
-                    className="story-section"
-                >
-                    <Container maxWidth="lg">
-                        <Box
-                            sx={{
-                                animation: visibleSections.has(index + 2) ? 'slideInFromSide 1s ease-out' : 'none',
-                                '@keyframes slideInFromSide': {
-                                    from: {
-                                        opacity: 0,
-                                        transform: index % 2 === 0 ? 'translateX(-50px)' : 'translateX(50px)',
-                                    },
-                                    to: { opacity: 1, transform: 'translateX(0)' },
-                                },
-                            }}
-                        >
-                            {/* Chapter Number */}
-                            <Box sx={{ textAlign: 'center', mb: 4 }}>
-                                <Typography
-                                    variant="h6"
-                                    color="#f06292"
-                                    fontWeight="300"
-                                    sx={{ mb: 1 }}
-                                >
-                                    Chapter {index + 1}
-                                </Typography>
-                                <Box
+            {/* Polaroid Gallery Section */}
+            <Box
+                sx={{
+                    minHeight: { xs: 'auto', md: '100vh' },
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    py: { xs: 6, md: 8 },
+                    px: { xs: 2, md: 3 },
+                }}
+            >
+                <Container maxWidth="xl">
+                    <Typography
+                        variant="h3"
+                        textAlign="center"
+                        color="#c2185b"
+                        fontWeight="bold"
+                        sx={{
+                            mb: { xs: 4, md: 6 },
+                            fontFamily: 'var(--font-caveat), Caveat, cursive',
+                            fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem', lg: '4rem' },
+                            px: 2,
+                        }}
+                    >
+                        ความทรงจำในโพลารอยด์ 📸
+                    </Typography>
+
+                    <Box
+                        sx={{
+                            display: 'grid',
+                            gridTemplateColumns: {
+                                xs: '1fr',
+                                sm: 'repeat(2, 1fr)',
+                                md: 'repeat(3, 1fr)',
+                                lg: 'repeat(4, 1fr)',
+                            },
+                            gap: { xs: 3, sm: 4 },
+                            justifyItems: 'center',
+                        }}
+                    >
+                        {sortedAttachments.map((attachment, index) => {
+                            // Random rotation for polaroid effect
+                            const rotations = [-3, 2, -1, 4, -2, 3, -4, 1];
+                            const rotation = rotations[index % rotations.length];
+
+                            return (
+                                <Paper
+                                    key={attachment.id}
+                                    elevation={6}
                                     sx={{
-                                        display: 'flex',
-                                        justifyContent: 'center',
-                                        gap: 1,
-                                        mb: 2,
+                                        background: 'white',
+                                        p: { xs: '10px 10px 20px 10px', sm: '12px 12px 25px 12px' },
+                                        borderRadius: '2px',
+                                        transform: `rotate(${rotation}deg)`,
+                                        transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                                        '&:hover': {
+                                            transform: 'rotate(0deg) scale(1.1) translateY(-10px)',
+                                            boxShadow: '0 15px 30px rgba(255, 77, 109, 0.3)',
+                                            zIndex: 50,
+                                        },
+                                        cursor: 'pointer',
+                                        width: '100%',
+                                        maxWidth: { xs: 280, sm: 320 },
                                     }}
                                 >
-                                    {[...Array(3)].map((_, i) => (
-                                        <Favorite
-                                            key={i}
-                                            sx={{
-                                                fontSize: 16,
-                                                color: '#f8bbd0',
-                                                animation: `pulse 1.5s ease-in-out infinite ${i * 0.2}s`,
-                                                '@keyframes pulse': {
-                                                    '0%, 100%': { opacity: 0.3 },
-                                                    '50%': { opacity: 1 },
-                                                },
-                                            }}
-                                        />
-                                    ))}
-                                </Box>
-                            </Box>
-
-                            {/* Media Content */}
-                            <Card
-                                sx={{
-                                    borderRadius: 6,
-                                    overflow: 'hidden',
-                                    boxShadow: '0 20px 60px rgba(233, 30, 99, 0.3)',
-                                    background: 'white',
-                                    transform: index % 2 === 0 ? 'rotate(-1deg)' : 'rotate(1deg)',
-                                    transition: 'transform 0.5s ease',
-                                    '&:hover': {
-                                        transform: 'rotate(0deg) scale(1.02)',
-                                    },
-                                }}
-                            >
-                                {attachment.type === 'image' ? (
+                                    {/* Image/Video Container */}
                                     <Box
                                         sx={{
-                                            position: 'relative',
                                             width: '100%',
-                                            height: { xs: 400, md: 600 },
+                                            aspectRatio: '1/1',
+                                            position: 'relative',
+                                            overflow: 'hidden',
+                                            mb: '10px',
                                             backgroundColor: '#f5f5f5',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
                                         }}
                                     >
-                                        {attachment.signedUrl ? (
-                                            <Image
-                                                src={attachment.signedUrl}
-                                                alt={`Memory ${index + 1}`}
-                                                fill
-                                                unoptimized
-                                                style={{ objectFit: 'cover' }}
-                                                onError={(e) => {
-                                                    console.error('Image load error:', attachment.signedUrl);
-                                                    (e.target as HTMLImageElement).style.display = 'none';
-                                                }}
-                                            />
+                                        {attachment.type === 'image' ? (
+                                            attachment.signedUrl ? (
+                                                <Image
+                                                    src={attachment.signedUrl}
+                                                    alt={attachment.text || `Memory ${index + 1}`}
+                                                    fill
+                                                    unoptimized
+                                                    style={{ objectFit: 'cover' }}
+                                                    onError={(e) => {
+                                                        console.error('Image load error:', attachment.signedUrl);
+                                                        (e.target as HTMLImageElement).style.display = 'none';
+                                                    }}
+                                                />
+                                            ) : (
+                                                <Box
+                                                    sx={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        height: '100%',
+                                                    }}
+                                                >
+                                                    <Typography color="text.secondary">ไม่พบรูปภาพ</Typography>
+                                                </Box>
+                                            )
                                         ) : (
-                                            <Typography color="text.secondary">ไม่พบรูปภาพ</Typography>
+                                            <video
+                                                controls
+                                                style={{
+                                                    width: '100%',
+                                                    height: '100%',
+                                                    objectFit: 'cover',
+                                                }}
+                                            >
+                                                <source src={attachment.signedUrl} />
+                                            </video>
                                         )}
                                     </Box>
-                                ) : (
-                                    <Box
-                                        sx={{
-                                            position: 'relative',
-                                            width: '100%',
-                                            paddingTop: '56.25%',
-                                            borderRadius: 2,
-                                            overflow: 'hidden',
-                                        }}
-                                    >
-                                        <video
-                                            controls
-                                            style={{
-                                                position: 'absolute',
-                                                top: 0,
-                                                left: 0,
-                                                width: '100%',
-                                                height: '100%',
-                                                objectFit: 'cover',
-                                            }}
-                                        >
-                                            <source src={attachment.signedUrl} />
-                                        </video>
-                                    </Box>
-                                )}
-                            </Card>
 
-                            {/* Caption */}
-                            {attachment.text && (
-                                <Box
-                                    sx={{
-                                        mt: 4,
-                                        p: 4,
-                                        background: 'rgba(255, 255, 255, 0.9)',
-                                        backdropFilter: 'blur(20px)',
-                                        borderRadius: 4,
-                                        border: '2px solid rgba(233, 30, 99, 0.2)',
-                                        textAlign: 'center',
-                                        position: 'relative',
-                                    }}
-                                >
+                                    {/* Caption Text */}
                                     <Typography
-                                        variant="h5"
-                                        fontStyle="italic"
-                                        color="#c2185b"
                                         sx={{
-                                            fontFamily: 'serif',
-                                            lineHeight: 2,
-                                            fontWeight: 300,
+                                            textAlign: 'center',
+                                            fontFamily: 'var(--font-caveat), Caveat, cursive',
+                                            fontSize: { xs: '1.25rem', sm: '1.5rem' },
+                                            color: '#555',
+                                            fontWeight: 700,
+                                            wordBreak: 'break-word',
+                                            lineHeight: 1.3,
                                         }}
                                     >
-                                        &quot;{attachment.text}&quot;
+                                        {attachment.text || `ความทรงจำ #${index + 1}`}
                                     </Typography>
-                                </Box>
-                            )}
-
-                            {/* Decorative Elements */}
-                            <Box
-                                sx={{
-                                    display: 'flex',
-                                    justifyContent: 'center',
-                                    gap: 2,
-                                    mt: 4,
-                                }}
-                            >
-                                {[...Array(5)].map((_, i) => (
-                                    <Box
-                                        key={i}
-                                        sx={{
-                                            width: 8,
-                                            height: 8,
-                                            borderRadius: '50%',
-                                            backgroundColor: i === Math.floor(index % 5) ? '#e91e63' : '#f8bbd0',
-                                            transition: 'all 0.3s ease',
-                                        }}
-                                    />
-                                ))}
-                            </Box>
-                        </Box>
-                    </Container>
-                </Box>
-            ))}
+                                </Paper>
+                            );
+                        })}
+                    </Box>
+                </Container>
+            </Box>
 
             {/* Final Message Section */}
             <Box
                 sx={{
-                    minHeight: '100vh',
+                    minHeight: { xs: 'auto', md: '100vh' },
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    py: 8,
-                    px: 3,
+                    py: { xs: 6, md: 8 },
+                    px: { xs: 2, md: 3 },
                 }}
-                className="story-section"
             >
                 <Container maxWidth="md">
-                    <Box
-                        sx={{
-                            animation: visibleSections.has(sortedAttachments.length + 2) ? 'fadeInUp 1.5s ease-out' : 'none',
-                        }}
-                    >
+                    <Box>
                         <Box
                             sx={{
                                 background: 'linear-gradient(135deg, #e91e63 0%, #f06292 50%, #e91e63 100%)',
-                                p: { xs: 4, md: 8 },
-                                borderRadius: 8,
+                                p: { xs: 3, sm: 4, md: 8 },
+                                borderRadius: { xs: 6, md: 8 },
                                 boxShadow: '0 30px 80px rgba(233, 30, 99, 0.4)',
                                 textAlign: 'center',
                                 color: 'white',
@@ -547,16 +483,23 @@ export default function ViewLetterPage() {
                             }}
                         >
                             {/* Background Hearts */}
-                            {[...Array(5)].map((_, i) => (
+                            {[
+                                { top: '10%', left: '5%', rotate: 45 },
+                                { top: '25%', left: '85%', rotate: 120 },
+                                { top: '60%', left: '10%', rotate: 200 },
+                                { top: '75%', left: '90%', rotate: 310 },
+                                { top: '40%', left: '50%', rotate: 180 },
+                            ].map((position, i) => (
                                 <Favorite
                                     key={i}
                                     sx={{
                                         position: 'absolute',
-                                        fontSize: 120,
+                                        fontSize: { xs: 80, md: 120 },
                                         opacity: 0.05,
-                                        top: `${Math.random() * 100}%`,
-                                        left: `${Math.random() * 100}%`,
-                                        transform: `rotate(${Math.random() * 360}deg)`,
+                                        top: position.top,
+                                        left: position.left,
+                                        transform: `rotate(${position.rotate}deg)`,
+                                        display: { xs: i > 2 ? 'none' : 'block', md: 'block' },
                                     }}
                                 />
                             ))}
@@ -568,10 +511,11 @@ export default function ViewLetterPage() {
                                 gutterBottom
                                 sx={{
                                     fontFamily: 'serif',
-                                    letterSpacing: 2,
-                                    mb: 4,
+                                    letterSpacing: { xs: 1, md: 2 },
+                                    mb: { xs: 3, md: 4 },
                                     position: 'relative',
                                     zIndex: 1,
+                                    fontSize: { xs: '1.75rem', sm: '2.25rem', md: '3rem' },
                                 }}
                             >
                                 ความในใจของฉัน...
@@ -581,9 +525,9 @@ export default function ViewLetterPage() {
                                 sx={{
                                     background: 'rgba(255, 255, 255, 0.1)',
                                     backdropFilter: 'blur(10px)',
-                                    borderRadius: 4,
-                                    p: 4,
-                                    mb: 4,
+                                    borderRadius: { xs: 3, md: 4 },
+                                    p: { xs: 3, md: 4 },
+                                    mb: { xs: 3, md: 4 },
                                     position: 'relative',
                                     zIndex: 1,
                                 }}
@@ -591,9 +535,10 @@ export default function ViewLetterPage() {
                                 <Typography
                                     variant="h6"
                                     sx={{
-                                        lineHeight: 2.5,
+                                        lineHeight: { xs: 2, md: 2.5 },
                                         fontWeight: 300,
                                         whiteSpace: 'pre-wrap',
+                                        fontSize: { xs: '1rem', sm: '1.15rem', md: '1.25rem' },
                                     }}
                                 >
                                     {letter.message}
@@ -605,8 +550,8 @@ export default function ViewLetterPage() {
                                     display: 'flex',
                                     justifyContent: 'center',
                                     alignItems: 'center',
-                                    gap: 2,
-                                    mb: 4,
+                                    gap: { xs: 1, md: 2 },
+                                    mb: { xs: 3, md: 4 },
                                     position: 'relative',
                                     zIndex: 1,
                                 }}
@@ -614,15 +559,15 @@ export default function ViewLetterPage() {
                                 <Box
                                     sx={{
                                         height: 2,
-                                        width: 60,
+                                        width: { xs: 40, md: 60 },
                                         background: 'rgba(255, 255, 255, 0.5)',
                                     }}
                                 />
-                                <Favorite sx={{ fontSize: 32 }} />
+                                <Favorite sx={{ fontSize: { xs: 24, md: 32 } }} />
                                 <Box
                                     sx={{
                                         height: 2,
-                                        width: 60,
+                                        width: { xs: 40, md: 60 },
                                         background: 'rgba(255, 255, 255, 0.5)',
                                     }}
                                 />
@@ -635,6 +580,7 @@ export default function ViewLetterPage() {
                                     fontFamily: 'serif',
                                     position: 'relative',
                                     zIndex: 1,
+                                    fontSize: { xs: '1.25rem', sm: '1.5rem', md: '1.5rem' },
                                 }}
                             >
                                 จากใจ: {letter.senderName} 💕
@@ -644,22 +590,17 @@ export default function ViewLetterPage() {
                                 sx={{
                                     display: 'flex',
                                     justifyContent: 'center',
-                                    gap: 2,
-                                    mt: 4,
+                                    gap: { xs: 1, md: 2 },
+                                    mt: { xs: 3, md: 4 },
                                     position: 'relative',
                                     zIndex: 1,
+                                    flexWrap: 'wrap',
                                 }}
                             >
                                 {[...Array(7)].map((_, i) => (
                                     <Favorite
                                         key={i}
-                                        sx={{
-                                            animation: `bounce 1s ease-in-out infinite ${i * 0.1}s`,
-                                            '@keyframes bounce': {
-                                                '0%, 100%': { transform: 'translateY(0)' },
-                                                '50%': { transform: 'translateY(-10px)' },
-                                            },
-                                        }}
+                                        sx={{ fontSize: { xs: 20, md: 24 } }}
                                     />
                                 ))}
                             </Box>
@@ -672,8 +613,8 @@ export default function ViewLetterPage() {
             <Box
                 sx={{
                     textAlign: 'center',
-                    py: 6,
-                    px: 3,
+                    py: { xs: 4, md: 6 },
+                    px: { xs: 2, md: 3 },
                     background: 'rgba(255, 255, 255, 0.5)',
                     backdropFilter: 'blur(10px)',
                 }}
@@ -683,18 +624,32 @@ export default function ViewLetterPage() {
                         sx={{
                             display: 'flex',
                             justifyContent: 'center',
-                            gap: 2,
-                            mb: 3,
+                            gap: { xs: 1, md: 2 },
+                            mb: { xs: 2, md: 3 },
                         }}
                     >
                         {[...Array(3)].map((_, i) => (
-                            <Favorite key={i} sx={{ color: '#e91e63', fontSize: 24 }} />
+                            <Favorite key={i} sx={{ color: '#e91e63', fontSize: { xs: 20, md: 24 } }} />
                         ))}
                     </Box>
-                    <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
+                    <Typography 
+                        variant="body1" 
+                        color="text.secondary" 
+                        sx={{ 
+                            mb: { xs: 1.5, md: 2 },
+                            fontSize: { xs: '0.95rem', md: '1rem' },
+                        }}
+                    >
                         จำนวนผู้ที่ได้อ่านเรื่องราวนี้: <strong>{letter.viewCount}</strong> คน
                     </Typography>
-                    <Typography variant="body2" color="text.disabled">
+                    <Typography 
+                        variant="body2" 
+                        color="text.disabled"
+                        sx={{ 
+                            fontSize: { xs: '0.85rem', md: '0.875rem' },
+                            px: { xs: 2, md: 0 },
+                        }}
+                    >
                         สร้างด้วยความรัก เมื่อ{' '}
                         {new Date(letter.createdAt).toLocaleDateString('th-TH', {
                             year: 'numeric',
@@ -704,11 +659,14 @@ export default function ViewLetterPage() {
                             minute: '2-digit',
                         })}
                     </Typography>
-                    <Box sx={{ mt: 3 }}>
+                    <Box sx={{ mt: { xs: 2, md: 3 } }}>
                         <Typography
                             variant="caption"
                             color="text.disabled"
                             fontStyle="italic"
+                            sx={{ 
+                                fontSize: { xs: '0.75rem', md: '0.8rem' },
+                            }}
                         >
                             &quot;ทุกความทรงจำคือของขวัญที่มีค่าที่สุด&quot;
                         </Typography>
